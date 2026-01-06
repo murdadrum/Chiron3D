@@ -4,7 +4,7 @@ exists (e.g., added as a submodule), load and execute it so the real addon
 is active. Otherwise, provide a small safe fallback (test connection) so the
 addon can be enabled while development continues.
 
-This avoids copying large upstream files into `addon/` and makes it easy to
+This avoids copying large upstream files into `chiron/` and makes it easy to
 vendor the upstream repo under `third_party/blender-mcp`.
 """
 
@@ -32,7 +32,7 @@ if os.path.exists(THIRD_PARTY_ADDON) and os.environ.get("CHIRON_DEV_MODE") == "1
         pass
 elif os.path.exists(THIRD_PARTY_ADDON):
     # Upstream addon is present but we're not in dev mode — refuse to execute it.
-    print("[chiron.addon] Upstream gemini_addon found but CHIRON_DEV_MODE!=1; skipping execution for safety.")
+    print("[chiron] Upstream gemini_addon found but CHIRON_DEV_MODE!=1; skipping execution for safety.")
 else:
     # Fallback minimal safe implementation
     import bpy
@@ -45,12 +45,12 @@ else:
     from .lesson_runner import LessonRunner
 
     bl_info = {
-        "name": "Chiron MCP Placeholder",
+        "name": "Chiron Sidecar Bridge",
         "author": "Chiron",
-        "version": (0, 1, 0),
+        "version": (0, 1, 1),
         "blender": (5, 0, 0),
         "location": "View3D > Sidebar > Chiron",
-        "description": "Placeholder UI for MCP integration; safe test operator only.",
+        "description": "Functional bridge for the Chiron Sidecar UI. Enables AI-guided lessons via local MCP server.",
         "category": "3D View",
     }
 
@@ -81,7 +81,7 @@ else:
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"status": "ok", "server": "chiron-addon"}).encode())
+                self.wfile.write(json.dumps({"status": "ok", "server": "chiron"}).encode())
             else:
                 self.send_error(404)
 
@@ -129,10 +129,10 @@ else:
         global _mcp_server
         try:
             _mcp_server = CHIRON_MCP_Server((host, int(port)), CHIRON_MCP_RequestHandler)
-            print(f"[chiron.addon] MCP Server started on {host}:{port}")
+            print(f"[chiron] MCP Server started on {host}:{port}")
             _mcp_server.serve_forever()
         except Exception as e:
-            print(f"[chiron.addon] MCP Server failed: {e}")
+            print(f"[chiron] MCP Server failed: {e}")
 
     def _process_mcp_queue():
         global _mcp_server
@@ -143,7 +143,7 @@ else:
                     runner = LessonRunner(lesson)
                     runner.run()
                 except Exception as e:
-                    print(f"[chiron.addon] Failed to run remote lesson: {e}")
+                    print(f"[chiron] Failed to run remote lesson: {e}")
         return 0.1 # Run every 100ms
 
     class CHIRON_OT_mcp_test_connection(bpy.types.Operator):
@@ -212,12 +212,11 @@ else:
         # Note: persistent TTS settings are stored in AddonPreferences; keep
         # a transient scene toggle for quick tests if preferences are unavailable.
 
-        try:
-            bpy.utils.register_class(CHIRON_AddonPreferences)
-        except Exception:
-            pass
-        bpy.utils.register_class(CHIRON_OT_mcp_test_connection)
-        bpy.utils.register_class(CHIRON_PT_mcp_panel)
+        for cls in (CHIRON_AddonPreferences, CHIRON_OT_mcp_test_connection, CHIRON_PT_mcp_panel):
+            try:
+                bpy.utils.register_class(cls)
+            except Exception:
+                pass
 
         # Start MCP Server Thread
         global _mcp_server_thread
@@ -266,7 +265,7 @@ else:
     if __name__ == "__main__":
         register()
 
-# Merge in any extra command handlers (e.g., SPEAK) provided by `addon/command_handlers.py`
+# Merge in any extra command handlers (e.g., SPEAK) provided by `chiron/command_handlers.py`
 try:
     from .command_handlers import COMMAND_HANDLERS as EXTRA_COMMAND_HANDLERS
 except Exception:
@@ -279,4 +278,4 @@ if EXTRA_COMMAND_HANDLERS:
         else:
             COMMAND_HANDLERS = EXTRA_COMMAND_HANDLERS
     except Exception as e:
-        print('[chiron.addon] Failed to merge EXTRA_COMMAND_HANDLERS:', e)
+        print('[chiron] Failed to merge EXTRA_COMMAND_HANDLERS:', e)

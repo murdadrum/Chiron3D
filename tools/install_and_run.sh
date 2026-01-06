@@ -42,9 +42,9 @@ fi
 
 if [ "$INSTALL_ADDON" = "1" ]; then
   echo "-- Installing Blender add-on to user addons folder --"
-  BLENDER_ADDONS_DIR="$HOME/Library/Application Support/Blender/5.0/scripts/addons/chiron_addon"
+  BLENDER_ADDONS_DIR="$HOME/Library/Application Support/Blender/5.0/scripts/addons/chiron"
   mkdir -p "$BLENDER_ADDONS_DIR"
-  rsync -a --delete "$ROOT_DIR/addon/" "$BLENDER_ADDONS_DIR/"
+  rsync -a --delete "$ROOT_DIR/chiron/" "$BLENDER_ADDONS_DIR/"
   echo "Addon copied to: $BLENDER_ADDONS_DIR"
 fi
 

@@ -1,6 +1,6 @@
 """
-Extra command handlers for Chiron addon — safe, limited TTS handler.
-This file is imported by the addon loader and merged into the main
+Extra command handlers for Chiron — safe, limited TTS handler.
+This file is imported by the chiron loader and merged into the main
 `COMMAND_HANDLERS` mapping when present.
 """
 import platform

@@ -54,7 +54,7 @@ npm run dev
 ```
 
 ### 3. Blender Add-on
-Open Blender → **Preferences** → **Add-ons** → **Install** → Select `addon/gemini_addon.py` and enable it.
+Open Blender → **Preferences** → **Add-ons** → **Install** → Select `chiron/gemini_addon.py` and enable it.
 > [!NOTE]
 > For a more integrated experience, vendor `blender-mcp` under `third_party/` to use the full MCP bridge functionality.
 
@@ -83,7 +83,7 @@ Open Blender → **Preferences** → **Add-ons** → **Install** → Select `add
 
 ```
 Chiron3D/
-├─ addon/                # Blender addon loader + placeholder
+├─ chiron/               # Blender addon loader + listener
 ├─ server/               # Node.js backend (AI orchestration)
 ├─ web/                  # Primary React/Vite Sidecar UI
 ├─ demo/                 # Alternative/Legacy frontend demo
