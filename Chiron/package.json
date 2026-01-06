@@ -1,0 +1,22 @@
+{
+  "name": "chiron",
+  "version": "1.0.0",
+  "description": "A TypeScript application for Chiron project.",
+  "main": "src/app.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/murdadrum/Chiron.git"
+  },
+  "keywords": [],
+  "author": "murdadrum",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^4.0.0"
+  }
+}
