@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from "react";
+import React, { createContext, useState, useContext, useEffect } from "react";
 
 const LessonContext = createContext();
 
@@ -97,6 +97,25 @@ export const LessonProvider = ({ children }) => {
     setLoading(false);
     setCurrentStepIndex(0);
   };
+
+  const forwardStepToBlender = async (step) => {
+    if (!step) return;
+    try {
+      await fetch("http://localhost:5001/api/mcp/forward", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lesson: [step] }),
+      });
+    } catch (err) {
+      console.error("Failed to forward step to Blender:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (lessonData && lessonData[currentStepIndex]) {
+      forwardStepToBlender(lessonData[currentStepIndex]);
+    }
+  }, [lessonData, currentStepIndex]);
 
   return (
     <LessonContext.Provider
