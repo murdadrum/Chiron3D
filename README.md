@@ -1,10 +1,10 @@
-# 🏹 Chiron3D — Interactive AI Sidecar for Blender
+# 🏹 Chiron — Interactive AI Sidecar for Blender
 
-[![Status](https://img.shields.io/badge/Status-Phase_1:_Simulation-blueviolet?style=for-the-badge)](https://github.com/murdadrum/Chiron3D)
+[![Status](https://img.shields.io/badge/Status-Phase_1:_Simulation-blueviolet?style=for-the-badge)](https://github.com/murdadrum/Chiron)
 [![Stack](https://img.shields.io/badge/Tech-React_•_Vite_•_Node_•_Python_•_Vertex_AI-blue?style=for-the-badge)]()
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)]()
 
-Chiron3D is a guided, AI-driven tutorial platform that runs alongside Blender. The web-based "Sidecar" UI (React/Vite) acts as the lesson engine while a lightweight Blender addon (Python) executes safe, deterministic demo steps and highlights UI elements.
+Chiron is a guided, AI-driven tutorial platform that runs inside Blender. The web-based "Sidecar" UI (React/Vite) acts as the lesson engine while a lightweight Blender addon (Python) executes safe, deterministic demo steps and highlights UI elements.
 
 ---
 
@@ -82,7 +82,7 @@ Open Blender → **Preferences** → **Add-ons** → **Install** → Select `chi
 ## 📁 Project Layout
 
 ```
-Chiron3D/
+Chiron/
 ├─ chiron/               # Blender addon loader + listener
 ├─ server/               # Node.js backend (AI orchestration)
 ├─ web/                  # Primary React/Vite Sidecar UI
