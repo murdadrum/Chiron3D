@@ -11,31 +11,43 @@ vendor the upstream repo under `third_party/blender-mcp`.
 import os
 import importlib.util
 import sys
+import bpy
+
+# --- ADDON METADATA ---
+# Must be at top level for Blender to detect it during installation.
+bl_info = {
+    "name": "Chiron Sidecar Bridge (Loader)",
+    "author": "Chiron",
+    "version": (0, 1, 2),
+    "blender": (3, 0, 0),
+    "location": "View3D > Sidebar > Chiron",
+    "description": "Loads the Chiron Sidecar Bridge or upstream Gemini MCP if available.",
+    "category": "3D View",
+}
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 THIRD_PARTY_ADDON = os.path.normpath(os.path.join(THIS_DIR, "..", "third_party", "blender-mcp", "gemini_addon.py"))
 
-# In production builds we must NOT execute arbitrary upstream code.
-# Allow dynamic loading only in explicit development mode (CHIRON_DEV_MODE=1).
-if os.path.exists(THIRD_PARTY_ADDON) and os.environ.get("CHIRON_DEV_MODE") == "1":
-    # Dev-only: load upstream addon file dynamically for local testing.
-    spec = importlib.util.spec_from_file_location("chiron.upstream_gemini", THIRD_PARTY_ADDON)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    # Do not blindly inject all globals; expose only a safe, minimal surface if required.
+# State to track which mode we are in
+USE_UPSTREAM = False
+upstream_module = None
+
+# Check if we should load the upstream vendored addon
+if os.path.exists(THIRD_PARTY_ADDON):
     try:
-        if hasattr(module, "register") and hasattr(module, "unregister"):
-            register = module.register
-            unregister = module.unregister
-    except Exception:
-        pass
-elif os.path.exists(THIRD_PARTY_ADDON):
-    # Upstream addon is present but we're not in dev mode — refuse to execute it.
-    print("[chiron] Upstream gemini_addon found but CHIRON_DEV_MODE!=1; skipping execution for safety.")
-else:
-    # Fallback minimal safe implementation
-    import bpy
+        # Load upstream addon file dynamically
+        spec = importlib.util.spec_from_file_location("chiron.upstream_gemini", THIRD_PARTY_ADDON)
+        upstream_module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = upstream_module
+        spec.loader.exec_module(upstream_module)
+        USE_UPSTREAM = True
+        print(f"[chiron] Loaded upstream addon from {THIRD_PARTY_ADDON}")
+    except Exception as e:
+        print(f"[chiron] Failed to load upstream addon: {e}")
+        USE_UPSTREAM = False
+
+# --- FALLBACK IMPLEMENTATION ---
+if not USE_UPSTREAM:
     import urllib.request
     import urllib.error
     import json
@@ -43,16 +55,6 @@ else:
     import http.server
     from bpy.props import StringProperty, BoolProperty
     from .lesson_runner import LessonRunner
-
-    bl_info = {
-        "name": "Chiron Sidecar Bridge",
-        "author": "Chiron",
-        "version": (0, 1, 1),
-        "blender": (5, 0, 0),
-        "location": "View3D > Sidebar > Chiron",
-        "description": "Functional bridge for the Chiron Sidecar UI. Enables AI-guided lessons via local MCP server.",
-        "category": "3D View",
-    }
 
     class CHIRON_AddonPreferences(bpy.types.AddonPreferences):
         bl_idname = __package__ or __name__.split('.')[0]
@@ -192,90 +194,100 @@ else:
                 layout.prop(scn, "chiron_tts_enabled")
             layout.operator("chiron.mcp_test_connection", icon="URL")
 
+# --- REGISTRATION HANDLER ---
 
-    def register():
-        bpy.types.Scene.chiron_mcp_host = StringProperty(
-            name="MCP Host",
-            description="Hostname for the local MCP server",
-            default="localhost",
-        )
-        bpy.types.Scene.chiron_mcp_port = StringProperty(
-            name="MCP Port",
-            description="Port for the local MCP server",
-            default="9876",
-        )
-        bpy.types.Scene.chiron_mcp_protocol = StringProperty(
-            name="Protocol",
-            description="http or https",
-            default="http",
-        )
-        # Note: persistent TTS settings are stored in AddonPreferences; keep
-        # a transient scene toggle for quick tests if preferences are unavailable.
-
-        for cls in (CHIRON_AddonPreferences, CHIRON_OT_mcp_test_connection, CHIRON_PT_mcp_panel):
-            try:
-                bpy.utils.register_class(cls)
-            except Exception:
-                pass
-
-        # Start MCP Server Thread
-        global _mcp_server_thread
-        scn = bpy.context.scene
-        host = scn.chiron_mcp_host or "localhost"
-        port = scn.chiron_mcp_port or "9876"
-        _mcp_server_thread = threading.Thread(target=_run_mcp_server, args=(host, port), daemon=True)
-        _mcp_server_thread.start()
-        
-        # Register queue processor timer
-        bpy.app.timers.register(_process_mcp_queue)
-
-
-    def unregister():
+def register():
+    if USE_UPSTREAM and hasattr(upstream_module, "register"):
         try:
-            del bpy.types.Scene.chiron_mcp_host
-            del bpy.types.Scene.chiron_mcp_port
-            del bpy.types.Scene.chiron_mcp_protocol
-        except Exception:
-            pass
+            upstream_module.register()
+            return
+        except Exception as e:
+            print(f"[chiron] Upstream register failed: {e}")
+    
+    # Fallback register
+    bpy.types.Scene.chiron_mcp_host = StringProperty(
+        name="MCP Host",
+        description="Hostname for the local MCP server",
+        default="localhost",
+    )
+    bpy.types.Scene.chiron_mcp_port = StringProperty(
+        name="MCP Port",
+        description="Port for the local MCP server",
+        default="9876",
+    )
+    bpy.types.Scene.chiron_mcp_protocol = StringProperty(
+        name="Protocol",
+        description="http or https",
+        default="http",
+    )
+
+    for cls in (CHIRON_AddonPreferences, CHIRON_OT_mcp_test_connection, CHIRON_PT_mcp_panel):
         try:
-            bpy.utils.unregister_class(CHIRON_PT_mcp_panel)
-        except Exception:
-            pass
-        try:
-            bpy.utils.unregister_class(CHIRON_OT_mcp_test_connection)
-        except Exception:
-            pass
-        try:
-            bpy.utils.unregister_class(CHIRON_AddonPreferences)
+            bpy.utils.register_class(cls)
         except Exception:
             pass
 
-        # Stop MCP Server
-        global _mcp_server, _mcp_server_thread
-        if _mcp_server:
-            _mcp_server.shutdown()
-            _mcp_server.server_close()
-            _mcp_server = None
-        
-        # Unregister timer
-        if bpy.app.timers.is_registered(_process_mcp_queue):
-            bpy.app.timers.unregister(_process_mcp_queue)
+    # Start MCP Server Thread
+    global _mcp_server_thread
+    scn = bpy.context.scene
+    host = scn.chiron_mcp_host or "localhost"
+    port = scn.chiron_mcp_port or "9876"
+    _mcp_server_thread = threading.Thread(target=_run_mcp_server, args=(host, port), daemon=True)
+    _mcp_server_thread.start()
+    
+    # Register queue processor timer
+    bpy.app.timers.register(_process_mcp_queue)
 
 
-    if __name__ == "__main__":
-        register()
-
-# Merge in any extra command handlers (e.g., SPEAK) provided by `chiron/command_handlers.py`
-try:
-    from .command_handlers import COMMAND_HANDLERS as EXTRA_COMMAND_HANDLERS
-except Exception:
-    EXTRA_COMMAND_HANDLERS = {}
-
-if EXTRA_COMMAND_HANDLERS:
+def unregister():
+    if USE_UPSTREAM and hasattr(upstream_module, "unregister"):
+        try:
+            upstream_module.unregister()
+            return
+        except Exception:
+            pass
+            
+    # Fallback unregister
     try:
+        del bpy.types.Scene.chiron_mcp_host
+        del bpy.types.Scene.chiron_mcp_port
+        del bpy.types.Scene.chiron_mcp_protocol
+    except Exception:
+        pass
+    try:
+        bpy.utils.unregister_class(CHIRON_PT_mcp_panel)
+    except Exception:
+        pass
+    try:
+        bpy.utils.unregister_class(CHIRON_OT_mcp_test_connection)
+    except Exception:
+        pass
+    try:
+        bpy.utils.unregister_class(CHIRON_AddonPreferences)
+    except Exception:
+        pass
+
+    # Stop MCP Server
+    global _mcp_server, _mcp_server_thread
+    if _mcp_server:
+        _mcp_server.shutdown()
+        _mcp_server.server_close()
+        _mcp_server = None
+    
+    # Unregister timer
+    if bpy.app.timers.is_registered(_process_mcp_queue):
+        bpy.app.timers.unregister(_process_mcp_queue)
+
+if __name__ == "__main__":
+    register()
+
+# Merge in any extra command handlers if using fallback (upstream usually has its own)
+if not USE_UPSTREAM:
+    try:
+        from .command_handlers import COMMAND_HANDLERS as EXTRA_COMMAND_HANDLERS
         if 'COMMAND_HANDLERS' in globals():
             COMMAND_HANDLERS.update(EXTRA_COMMAND_HANDLERS)
         else:
             COMMAND_HANDLERS = EXTRA_COMMAND_HANDLERS
     except Exception as e:
-        print('[chiron] Failed to merge EXTRA_COMMAND_HANDLERS:', e)
+        pass

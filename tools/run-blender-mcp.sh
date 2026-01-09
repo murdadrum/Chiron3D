@@ -9,7 +9,14 @@ THIRD_PARTY="$ROOT_DIR/third_party/blender-mcp"
 
 MCP_HOST="${MCP_HOST:-127.0.0.1}"
 MCP_PORT="${MCP_PORT:-9876}"
-PYTHON="${PYTHON:-python3}"
+# Check for newer python versions if default is too old or just prefer them
+if command -v python3.11 &>/dev/null; then
+  PYTHON="${PYTHON:-python3.11}"
+elif command -v python3.10 &>/dev/null; then
+  PYTHON="${PYTHON:-python3.10}"
+else
+  PYTHON="${PYTHON:-python3}"
+fi
 
 if [ ! -d "$THIRD_PARTY" ]; then
   echo "third_party/blender-mcp not found. Add it as a git submodule or copy the blender-mcp sources into $THIRD_PARTY"
